@@ -7,6 +7,8 @@
 #include "frame_fileindex.h"
 #include "frame_compare.h"
 #include "frame_home.h"
+#include "frame_helloworld.h"
+#include "../resources/ImageResource_HelloWorld.h"
 
 enum
 {
@@ -17,7 +19,8 @@ enum
     kKeySDFile,
     kKeyCompare,
     kKeyHome,
-    kKeyLifeGame
+    kKeyLifeGame,
+    kKeyHelloWorld
 };
 
 #define KEY_W 92
@@ -114,6 +117,17 @@ void key_home_cb(epdgui_args_vector_t &args)
     *((int*)(args[0])) = 0;
 }
 
+void key_helloworld_cb(epdgui_args_vector_t &args)
+{
+    Frame_Base *frame = EPDGUI_GetFrame("Frame_HelloWorld");
+    if(frame == NULL)
+    {
+        frame = new Frame_HelloWorld();
+        EPDGUI_AddFrame("Frame_HelloWorld", frame);
+    }
+    EPDGUI_PushFrame(frame);
+    *((int*)(args[0])) = 0;
+}
 
 Frame_Main::Frame_Main(void): Frame_Base(false)
 {
@@ -137,6 +151,14 @@ Frame_Main::Frame_Main(void): Frame_Base(false)
     {
         _key[i + 4] = new EPDGUI_Button("测试", 20 + i * 136, 240, KEY_W, KEY_H);
     }
+
+    _key[8] = new EPDGUI_Button("HelloWorld", 20, 390, KEY_W, KEY_H);
+
+    _key[kKeyHelloWorld]->CanvasNormal()->pushImage(0, 0, 92, 92, ImageResource_helloworld_icon_92x92);
+    *(_key[kKeyHelloWorld]->CanvasPressed()) = *(_key[kKeyHelloWorld]->CanvasNormal());
+    _key[kKeyHelloWorld]->CanvasPressed()->ReverseColor();
+    _key[kKeyHelloWorld]->AddArgs(EPDGUI_Button::EVENT_RELEASED, 0, (void*)(&_is_run));
+    _key[kKeyHelloWorld]->Bind(EPDGUI_Button::EVENT_RELEASED, key_helloworld_cb);
 
     _key[kKeySetting]->CanvasNormal()->pushImage(0, 0, 92, 92, ImageResource_main_icon_setting_92x92);
     *(_key[kKeySetting]->CanvasPressed()) = *(_key[kKeySetting]->CanvasNormal());
@@ -252,6 +274,10 @@ void Frame_Main::AppName(m5epd_update_mode_t mode)
         _names->drawString("LifeGame", 20 + 46 + 3 * 136, 16);
     }
     _names->pushCanvas(0, 337, mode);
+
+    _names->fillCanvas(0);
+    _names->drawString("HelloWorld", 20 + 46, 16);
+    _names->pushCanvas(0, 337+151, mode);
 }
 
 void Frame_Main::StatusBar(m5epd_update_mode_t mode)
@@ -313,7 +339,7 @@ int Frame_Main::init(epdgui_args_vector_t &args)
 {
     _is_run = 1;
     M5.EPD.WriteFullGram4bpp(GetWallpaper());
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < 9; i++)
     {
         EPDGUI_AddObject(_key[i]);
     }
