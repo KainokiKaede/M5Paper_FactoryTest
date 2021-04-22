@@ -1,0 +1,3 @@
+[submodule "lib/ESP32-ANCS-AMS-Notifications"]
+	path = lib/ESP32-ANCS-AMS-Notifications
+	url = https://github.com/ddlsmurf/ESP32-ANCS-AMS-Notifications

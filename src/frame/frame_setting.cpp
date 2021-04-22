@@ -3,6 +3,49 @@
 #include "frame_setting_wallpaper.h"
 #include "WiFi.h"
 
+//++++++++++++++++++++++++
+//+++++ RTC settings +++++
+//++++++++++++++++++++++++
+rtc_time_t RTCtime;
+rtc_date_t RTCDate;
+
+void setupTime(int year, int month, int date, int hour, int minute, int second){
+  RTCtime.hour = hour;
+  RTCtime.min = minute;
+  RTCtime.sec = second;
+  M5.RTC.setTime(&RTCtime);
+
+  RTCDate.year = year;
+  RTCDate.mon = month;
+  RTCDate.day = date;
+  M5.RTC.setDate(&RTCDate);
+}
+//---------------------------
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//+++++ Get Current Time from BLE Current Time Service +++++
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#include <esp32notifications.h>
+
+void checkCTSAndUpdateRTC() {
+  BLENotifications notifications;
+  notifications.begin("CTS_test");  // BLE begin.
+  while (1) {
+    if (notifications.clientCTS->ready()) break;
+    delay(100);
+  }
+  ble_cts_current_time_char_t *time = notifications.clientCTS->readTime();
+  if (time->exact_time_256.seconds < 59) {  // Inclimentating time is complicated ... so forget about seconds = 59.
+    delay(int(1000. - float(time->exact_time_256.fractions256) * 1000. / 256.));  // wait until next second.
+    time->exact_time_256.seconds += 1;  // incliment.
+  }
+  setupTime(time->exact_time_256.year, time->exact_time_256.month, time->exact_time_256.day,
+            time->exact_time_256.hours, time->exact_time_256.minutes, time->exact_time_256.seconds);
+  notifications.stop();  // BLE stop.
+}
+//-----------------------------------------------------------
+
+
 #define KEY_W 92
 #define KEY_H 92
 const uint16_t kTimeZoneY = 520;
@@ -64,66 +107,17 @@ void key_synctime_cb(epdgui_args_vector_t &args)
     info.setTextSize(26);
     info.setTextColor(0);
     info.setTextDatum(CC_DATUM);
-    uint8_t language = GetLanguage();
-    if(WiFi.status() != WL_CONNECTED)
-    {
-        if(language == LANGUAGE_JA)
-        {
-            info.drawString("WLANが接続いません", 150, 55);
-        }
-        else if(language == LANGUAGE_ZH)
-        {
-            info.drawString("WLAN未连接", 150, 55);
-        }
-        else
-        {
-            info.drawString("WLAN not connected", 150, 55);
-        }
-        info.pushCanvas(120, 430, UPDATE_MODE_GL16);
-        M5.EPD.WriteFullGram4bpp(GetWallpaper());
-        title->pushCanvas(0, 8, UPDATE_MODE_NONE);
-        tzone->pushCanvas(4, kTimeZoneY, UPDATE_MODE_NONE);
-        EPDGUI_Draw(UPDATE_MODE_NONE);
-        while(!M5.TP.avaliable());
-        M5.EPD.UpdateFull(UPDATE_MODE_GL16);
-        return;
-    }
+    info.drawString("Connecting to BLE CTS...", 150, 55);
+    info.pushCanvas(120, 430, UPDATE_MODE_GL16);
+
     LoadingAnime_32x32_Start(532 - 15 - 32, 220 + 14);
-    bool ret = SyncNTPTime();
+    checkCTSAndUpdateRTC();
+    SetTimeSynced(1);
     LoadingAnime_32x32_Stop();
 
-    if(ret == 0)
-    {
-        if(language == LANGUAGE_JA)
-        {
-            info.drawString("シンクロが失敗しました", 150, 55);
-        }
-        else if(language == LANGUAGE_ZH)
-        {
-            info.drawString("同步失败", 150, 55);
-        }
-        else
-        {
-            info.drawString("Time sync failed", 150, 55);
-        }
-        info.pushCanvas(120, 430, UPDATE_MODE_GL16);
-    }
-    else
-    {
-        if(language == LANGUAGE_JA)
-        {
-            info.drawString("成功", 150, 55);
-        }
-        else if(language == LANGUAGE_ZH)
-        {
-            info.drawString("成功", 150, 55);
-        }
-        else
-        {
-            info.drawString("Success", 150, 55);
-        }
-        info.pushCanvas(120, 430, UPDATE_MODE_GL16);
-    }
+    info.fillCanvas(15);
+    info.drawString("Done.", 150, 55);
+    info.pushCanvas(120, 430, UPDATE_MODE_GL16);
     M5.EPD.WriteFullGram4bpp(GetWallpaper());
     title->pushCanvas(0, 8, UPDATE_MODE_NONE);
     tzone->pushCanvas(4, kTimeZoneY, UPDATE_MODE_NONE);
